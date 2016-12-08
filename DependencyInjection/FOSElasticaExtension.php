@@ -2,7 +2,6 @@
 
 namespace FOS\ElasticaBundle\DependencyInjection;
 
-use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -170,7 +169,7 @@ class FOSElasticaExtension extends Extension
                 $this->loadIndexFinder($container, $name, $reference);
             }
 
-            $this->loadTypes((array) $index['types'], $container, $this->indexConfigs[$name], $indexableCallbacks);
+            $this->loadTypes((array) $index['types'], $container, $this->indexConfigs[$name], $indexableCallbacks, $indexes);
         }
 
         $indexable = $container->getDefinition('fos_elastica.indexable');
@@ -211,7 +210,7 @@ class FOSElasticaExtension extends Extension
      * @param array            $indexConfig
      * @param array            $indexableCallbacks
      */
-    private function loadTypes(array $types, ContainerBuilder $container, array $indexConfig, array &$indexableCallbacks)
+    private function loadTypes(array $types, ContainerBuilder $container, array $indexConfig, array &$indexableCallbacks, array $indexes)
     {
         foreach ($types as $name => $type) {
             $indexName = $indexConfig['name'];
@@ -245,6 +244,11 @@ class FOSElasticaExtension extends Extension
                     $typeConfig['mapping'][$field] = $type[$field];
                 }
             }
+            //Replace core entity with current
+            if(!isset($type['persistence']['model']) && isset($indexes['default']['types'][$name]['persistence']['model'])) {
+                $realName = $indexes['default']['types'][$name]['persistence']['model'];
+                $type['persistence']['model'] = ucfirst($indexName).$realName;
+            }
 
             foreach (array(
                 'persistence',
@@ -256,9 +260,22 @@ class FOSElasticaExtension extends Extension
                 'dynamic_date_formats',
                 'numeric_detection',
             ) as $field) {
-                $typeConfig['config'][$field] = array_key_exists($field, $type) ?
+                if(array_key_exists($field, $type)) $typeConfig['config'][$field] = $type[$field];
+                else if(isset($indexes['default']['types'][$name]) && array_key_exists($field, $indexes['default']['types'][$name]))
+                    $typeConfig['config'][$field] = $indexes['default']['types'][$name][$field];
+                else $typeConfig['config'][$field] = null;
+                /*$typeConfig['config'][$field] = array_key_exists($field, $type) ?
                     $type[$field] :
-                    null;
+                    null;*/
+            }
+
+            //@ADDEDTOENABLEIMPORTCONFIG
+            if(in_array('include_core_config', array_keys($type)) && isset($indexes['default']['types'][$name])) {
+                foreach($indexes['default']['types'][$name]['properties'] as $defaultName => $defaultDetails) {
+                    if(!isset($typeConfig['mapping']['properties'][$defaultName])) {
+                        $typeConfig['mapping']['properties'][$defaultName] = $defaultDetails;
+                    }
+                }
             }
 
             $this->indexConfigs[$indexName]['types'][$name] = $typeConfig;
@@ -276,6 +293,9 @@ class FOSElasticaExtension extends Extension
 
             if (isset($type['indexable_callback'])) {
                 $indexableCallbacks[sprintf('%s/%s', $indexName, $name)] = $type['indexable_callback'];
+            }
+            else if(isset($indexes['default']['types'][$name]['indexable_callback'])) {
+                $indexableCallbacks[sprintf('%s/%s', $indexName, $name)] = $indexes['default']['types'][$name]['indexable_callback'];
             }
 
             if ($container->hasDefinition('fos_elastica.serializer_callback_prototype')) {
@@ -659,7 +679,8 @@ class FOSElasticaExtension extends Extension
         $serializer = $container->getDefinition('fos_elastica.serializer_callback_prototype');
         $serializer->setClass($config['callback_class']);
 
-        if (is_subclass_of($config['callback_class'], ContainerAwareInterface::class)) {
+        $callbackClassImplementedInterfaces = class_implements($config['callback_class']);
+        if (isset($callbackClassImplementedInterfaces['Symfony\Component\DependencyInjection\ContainerAwareInterface'])) {
             $serializer->addMethodCall('setContainer', array(new Reference('service_container')));
         }
     }

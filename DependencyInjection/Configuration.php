@@ -265,6 +265,7 @@ class Configuration implements ConfigurationInterface
                     ->booleanNode('numeric_detection')->end()
                     ->scalarNode('dynamic')->end()
                     ->variableNode('indexable_callback')->end()
+                    ->variableNode('include_core_config')->end()//@ADDEDTOENABLEIMPORTCONFIG
                     ->append($this->getPersistenceNode())
                     ->append($this->getSerializerNode())
                 ->end()
