@@ -85,6 +85,8 @@ class IndexPopulateEvent extends IndexEvent
     }
 
     /**
+     * Fix "Unknown delete option" bug
+     * 
      * @param string $name
      *
      * @return mixed
@@ -93,11 +95,13 @@ class IndexPopulateEvent extends IndexEvent
      */
     public function getOption($name)
     {
-        if (!isset($this->options[$name])) {
+
+        if (!isset($this->options[$name]) && $name != 'delete') {
             throw new \InvalidArgumentException(sprintf('The "%s" option does not exist.', $name));
         }
-
-        return $this->options[$name];
+        if ($name != 'delete') {
+            return $this->options[$name];
+        }
     }
 
     /**
