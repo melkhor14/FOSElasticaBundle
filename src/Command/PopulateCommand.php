@@ -32,6 +32,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Routing\RequestContext;
 
 /**
  * Populate the search index.
@@ -70,12 +71,18 @@ class PopulateCommand extends Command
      */
     private $resetter;
 
+    /**
+     * @var RequestContext
+     */
+    private $requestContext;
+
     public function __construct(
         EventDispatcherInterface $dispatcher,
         IndexManager $indexManager,
         PagerProviderRegistry $pagerProviderRegistry,
         PagerPersisterRegistry $pagerPersisterRegistry,
-        Resetter $resetter
+        Resetter $resetter,
+        RequestContext $requestContext
     ) {
         parent::__construct();
 
@@ -84,6 +91,7 @@ class PopulateCommand extends Command
         $this->pagerProviderRegistry = $pagerProviderRegistry;
         $this->pagerPersisterRegistry = $pagerPersisterRegistry;
         $this->resetter = $resetter;
+        $this->requestContext = $requestContext;
     }
 
     protected function configure()
@@ -176,6 +184,7 @@ class PopulateCommand extends Command
      */
     private function populateIndex(OutputInterface $output, $index, $reset, $options)
     {
+        $this->requestContext->setParameter('_route', $index);
         $event = new IndexPopulateEvent($index, $reset, $options);
         $this->dispatcher->dispatch(IndexPopulateEvent::PRE_INDEX_POPULATE, $event);
 
@@ -205,6 +214,7 @@ class PopulateCommand extends Command
      */
     private function populateIndexType(OutputInterface $output, $index, $type, $reset, $options)
     {
+        $this->requestContext->setParameter('_route', $index);
         $event = new TypePopulateEvent($index, $type, $reset, $options);
         $this->dispatcher->dispatch(TypePopulateEvent::PRE_TYPE_POPULATE, $event);
 
@@ -271,6 +281,7 @@ class PopulateCommand extends Command
      */
     private function refreshIndex(OutputInterface $output, $index)
     {
+        $this->requestContext->setParameter('_route', $index);
         $output->writeln(sprintf('<info>Refreshing</info> <comment>%s</comment>', $index));
         $this->indexManager->getIndex($index)->refresh();
     }

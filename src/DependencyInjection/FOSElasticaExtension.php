@@ -261,7 +261,7 @@ class FOSElasticaExtension extends Extension
             //Replace core entity with current
             if(!isset($type['persistence']['model']) && isset($indexes['default']['types'][$name]['persistence']['model'])) {
                 $realName = $indexes['default']['types'][$name]['persistence']['model'];
-                $type['persistence']['model'] = ucfirst($indexName).$realName;
+                $type['persistence']['model'] = 'App\\'.ucfirst(explode('.', $indexName)[0]).$realName;
             }
 
             foreach ([
@@ -280,7 +280,6 @@ class FOSElasticaExtension extends Extension
                 else $typeConfig['config'][$field] = null;
             }
 
-            //@ADDEDTOENABLEIMPORTCONFIG
             if(in_array('include_core_config', array_keys($type)) && isset($indexes['default']['types'][$name])) {
                 foreach($indexes['default']['types'][$name]['properties'] as $defaultName => $defaultDetails) {
                     if(!isset($typeConfig['mapping']['properties'][$defaultName])) {
