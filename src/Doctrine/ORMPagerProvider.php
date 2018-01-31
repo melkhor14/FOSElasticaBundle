@@ -64,11 +64,13 @@ final class ORMPagerProvider implements PagerProviderInterface
 
         $manager = $this->doctrine->getManagerForClass($this->objectClass);
         $repository = $manager->getRepository($this->objectClass);
-
-        $pager = new PagerfantaPager(new Pagerfanta(new DoctrineORMAdapter(call_user_func(
+        $query = call_user_func(
             [$repository, $options['query_builder_method']],
             self::ENTITY_ALIAS
-        ))));
+        );
+        $query->orderBy($query->getRootAliases()[0].'.id', 'ASC');
+
+        $pager = new PagerfantaPager(new Pagerfanta(new DoctrineORMAdapter($query)));
 
         $this->registerListenersService->register($manager, $pager, $options);
 
